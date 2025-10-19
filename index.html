@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alterga - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="login-box">
+            <div class="logo">
+                <img src="logo.svg" alt="Alterga Logo">
+                <h1>Alterga Trasport</h1>
+            </div>
+            
+            <form id="loginForm">
+                <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="twój@email.com">
+                </div>
+                
+                <div class="form-group">
+                <label for="password">Hasło</label>
+                <input type="password" id="password" name="password" required placeholder="••••••••">
+                </div>
+                
+                <button type="submit" class="btn-login">Zaloguj się</button>
+                <button type="button" id="registerBtn" class="btn-register">Utwórz konto</button>
+            </form>
+            
+            <div class="footer-links">
+                <a href="#" id="forgotPassword">Zapomniałeś hasła?</a>
+            </div>
+            
+            <div id="message" class="message"></div>
+        </div>
+    </div>
+    
+    <script src="firebase-config.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
