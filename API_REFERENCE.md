@@ -62,6 +62,15 @@ await db.collection('vehicles').doc(vehicleId).update({
 });
 ```
 
+### Marcar avería menor (no inmoviliza el vehículo)
+
+```javascript
+await db.collection('vehicles').doc(vehicleId).update({
+    status: 'minor_issue'
+    // El vehículo mantiene su color base (verde/azul) pero muestra icono de reparación
+});
+```
+
 ### Estructura de datos del vehículo en Firestore
 
 ```javascript
@@ -69,7 +78,7 @@ await db.collection('vehicles').doc(vehicleId).update({
     brand: "Renault",
     model: "Master",
     registration: "NOL12345",
-    status: "available" | "occupied" | "broken",
+    status: "available" | "occupied" | "broken" | "minor_issue",
     currentDriver: "Juan Pérez" | null,
     keysDelivered: true | false,
     keysDeliveredTo: "Juan Pérez" | null,
@@ -87,3 +96,4 @@ El dashboard escucha cambios en tiempo real, así que cuando la app móvil actua
 - Si está "averiado" → Badge rojo parpadeante
 - Si está "ocupado" → Muestra nombre del conductor
 - Si está "disponible" → Badge verde
+- Si está "minor_issue" → Badge verde/azul (según conductor) con icono 🔧 de reparación

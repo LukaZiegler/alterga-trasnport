@@ -16,12 +16,14 @@
     <div class="dashboard-container">
         <header>
             <div class="logo-header">
-                <img src="logo.svg" alt="Alterga Logo">
+                <img src="logo.png" alt="Alterga Logo">
                 <h2>Alterga Transport</h2>
             </div>
             <nav class="nav-tabs">
                 <button class="nav-tab active" data-view="vehicles">Pojazdy</button>
                 <button class="nav-tab" data-view="trips">Rejestr Podróży</button>
+                <button class="nav-tab" data-view="assignments">Przypisania Pojazdów</button>
+                 <button class="nav-tab" data-view="transfers">Transferencias</button>
             </nav>
             <div class="user-info">
                 <span id="userEmail"></span>
@@ -112,7 +114,62 @@
                     </table>
                 </div>
             </div>
-        </main>
+
+                    <!-- Vista de Asignaciones -->
+            <div id="assignmentsView" class="view">
+                <div class="view-header">
+                    <h1>Przypisania Pojazdów</h1>
+                    <button id="newAssignmentBtn" class="btn-primary">+ Nowe Przypisanie</button>
+                </div>
+
+                <div class="assignments-container">
+                    <div class="table-container">
+                        <table class="trips-table assignments-table">
+                            <thead>
+                                <tr>
+                                    <th>Pojazd</th>
+                                    <th>Kierowca</th>
+                                    <th>Data Przypisania</th>
+                                    <th>Status</th>
+                                    <th>Akcje</th>
+                                </tr>
+                            </thead>
+                            <tbody id="assignmentsTableBody">
+                                <!-- Asignaciones se cargarán dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                    </div>
+                    </div>
+
+             <!-- Vista de Transferencias -->
+             <div id="transfersView" class="view">
+                 <div class="view-header">
+                     <h1>Transferencias de Vehículos</h1>
+                     <button id="newTransferBtn" class="btn-primary">+ Nueva Transferencia</button>
+                 </div>
+
+                 <div class="transfers-container">
+                     <div class="table-container">
+                         <table class="trips-table transfers-table">
+                             <thead>
+                                 <tr>
+                                     <th>Vehículo</th>
+                                     <th>De Usuario</th>
+                                     <th>A Usuario</th>
+                                     <th>Fecha</th>
+                                     <th>Estado</th>
+                                     <th>Acciones</th>
+                                 </tr>
+                             </thead>
+                             <tbody id="transfersTableBody">
+                                 <!-- Transfers se cargarán dinámicamente -->
+                             </tbody>
+                         </table>
+                     </div>
+                 </div>
+             </div>
+         </main>
     </div>
     
     <!-- Modal Agregar/Editar Vehículo -->
@@ -150,14 +207,62 @@
                     </div>
                     
                     <div class="form-group">
-                        <label for="currentFuel">Aktualne paliwo (L) *</label>
-                        <input type="number" id="currentFuel" required min="0" step="0.1">
+                    <label for="currentFuel">Aktualne paliwo (L) *</label>
+                    <input type="number" id="currentFuel" min="0" step="0.1">
                     </div>
                     
                     <div class="form-group">
-                        <label for="fuelCapacity">Pojemność zbiornika (L)</label>
-                        <input type="number" id="fuelCapacity" min="0" step="0.1">
+                    <label for="fuelCapacity">Pojemność zbiornika (L)</label>
+                    <input type="number" id="fuelCapacity" min="0" step="0.1">
                     </div>
+
+                    <div class="form-group full-width">
+                    <label>Typy paliwa *</label>
+                    <div class="fuel-types-grid">
+                    <label class="checkbox-label">
+                    <input type="checkbox" id="fuelGasolina" value="Gasolina">
+                    <span>Paliwo</span>
+                    </label>
+                    <label class="checkbox-label">
+                    <input type="checkbox" id="fuelDiesel" value="Diesel">
+                    <span>Diesel</span>
+                    </label>
+                    <label class="checkbox-label">
+                    <input type="checkbox" id="fuelGas" value="Gas">
+                    <span>Gas</span>
+                    </label>
+                    </div>
+                    <small style="color: #666; font-size: 12px;">Selecciona máximo 2 tipos (Gasolina + Gas, o Diesel + Gas)</small>
+                    </div>
+
+                     <!-- Dual Fuel Details -->
+                     <div id="dualFuelDetails" class="form-group full-width" style="display: none;">
+                         <h4>Detalles de Tanques Duales</h4>
+                         <div class="dual-fuel-grid">
+                             <div class="fuel-tank-section">
+                                 <h5 id="tank1Label">Tanque 1</h5>
+                                 <div class="form-group">
+                                     <label for="fuelCapacity1">Capacidad (L)</label>
+                                     <input type="number" id="fuelCapacity1" min="0" step="0.1">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="currentFuel1">Litros Actuales (L)</label>
+                                     <input type="number" id="currentFuel1" min="0" step="0.1">
+                                 </div>
+                             </div>
+                             <div class="fuel-tank-section">
+                                 <h5 id="tank2Label">Tanque 2</h5>
+                                 <div class="form-group">
+                                     <label for="fuelCapacity2">Capacidad (L)</label>
+                                     <input type="number" id="fuelCapacity2" min="0" step="0.1">
+                                 </div>
+                                 <div class="form-group">
+                                     <label for="currentFuel2">Litros Actuales (L)</label>
+                                     <input type="number" id="currentFuel2" min="0" step="0.1">
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
                     
                     <div class="form-group">
                         <label for="tireType">Typ opon</label>
@@ -220,8 +325,50 @@
                 </div>
             </form>
         </div>
+        </div>
+
+        <!-- Modal Nueva Asignación -->
+        <div id="assignmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="assignmentModalTitle">Nowe Przypisanie</h2>
+                <span class="close" id="assignmentModalClose">&times;</span>
+            </div>
+            <form id="assignmentForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="assignmentVehicle">Pojazd *</label>
+                        <select id="assignmentVehicle" required>
+                            <option value="">Wybierz pojazd</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="assignmentDriver">Kierowca *</label>
+                        <select id="assignmentDriver" required>
+                            <option value="">Wybierz kierowcę</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="assignmentPin">PIN (opcjonalny)</label>
+                        <input type="text" id="assignmentPin" placeholder="1234" maxlength="6">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="assignmentNotes">Notatki</label>
+                        <textarea id="assignmentNotes" rows="3" placeholder="Dodatkowe informacje"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelAssignmentBtn">Anuluj</button>
+                    <button type="submit" class="btn-primary">Przypisz</button>
+                </div>
+            </form>
+        </div>
     </div>
-    
+
     <script src="firebase-config.js"></script>
     <script src="dashboard.js"></script>
 </body>
