@@ -56,12 +56,12 @@ header {
 }
 
 .nav-tab:hover {
-    color: #667eea;
+    color: #3b82f6;
 }
 
 .nav-tab.active {
-    color: #667eea;
-    border-bottom-color: #667eea;
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
 }
 
 .user-info {
@@ -78,7 +78,7 @@ header {
 
 .btn-logout {
     padding: 8px 18px;
-    background: #667eea;
+    background: #3b82f6;
     color: white;
     border: none;
     border-radius: 6px;
@@ -125,7 +125,7 @@ main {
 
 .btn-primary {
     padding: 12px 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -143,8 +143,8 @@ main {
 .btn-secondary {
     padding: 12px 24px;
     background: white;
-    color: #667eea;
-    border: 2px solid #667eea;
+    color: #3b82f6;
+    border: 2px solid #3b82f6;
     border-radius: 8px;
     font-size: 15px;
     font-weight: 600;
@@ -218,6 +218,126 @@ main {
     font-weight: 700;
     border: 2px solid #dc3545;
     animation: pulse 2s infinite;
+}
+
+.vehicle-status-badge.minor_issue {
+    background: #fff3cd; /* Amarillo claro */
+    color: #856404; /* Texto marrón oscuro */
+    border: 2px solid #ffc107; /* Borde amarillo */
+    font-size: 14px; /* Texto más grande */
+    font-weight: 700; /* Negrita */
+    animation: attention 2s ease-in-out infinite; /* Animación sutil */
+}
+
+@keyframes attention {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+/* Notificación de recarga de combustible */
+.refuel-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(40, 167, 69, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10000;
+    transform: translateX(100%);
+    transition: transform 0.5s ease-out;
+    max-width: 300px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.refuel-notification.visible {
+    transform: translateX(0);
+}
+
+.refuel-notification:not(.visible) {
+    transform: translateX(100%);
+}
+
+.refuel-icon {
+    font-size: 24px;
+    animation: fuel-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fuel-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+.refuel-text {
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.refuel-text strong {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.refuel-text small {
+    opacity: 0.9;
+    font-style: italic;
+}
+
+/* Tooltip personalizado para badges de avería */
+.tooltip-container {
+    position: static;
+    display: inline-block;
+}
+
+.tooltip-container:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.tooltip-text {
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    top: -10px; /* Posicionar arriba del badge */
+    left: 50%;
+    transform: translateX(-50%) translateY(-100%);
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: pre-line;
+    z-index: 1000;
+    max-width: 250px;
+    word-wrap: break-word;
+    transition: opacity 0.3s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.tooltip-text::after {
+    content: '';
+    position: absolute;
+    bottom: -5px; /* Cambiar para que apunte hacia arriba */
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
 }
 
 @keyframes pulse {
@@ -311,7 +431,7 @@ main {
 }
 
 .vehicle-registration {
-    color: #667eea;
+    color: #3b82f6;
     font-weight: 600;
     font-size: 16px;
     margin-bottom: 15px;
@@ -378,7 +498,7 @@ main {
 }
 
 .btn-edit {
-    background: #667eea;
+    background: #3b82f6;
     color: white;
 }
 
@@ -511,7 +631,7 @@ main {
 }
 
 .btn-expand {
-    background: #667eea;
+    background: #3b82f6;
     color: white;
     border: none;
     border-radius: 50%;
@@ -546,7 +666,7 @@ main {
     padding: 10px;
     background: white;
     border-radius: 6px;
-    border-left: 3px solid #667eea;
+    border-left: 3px solid #3b82f6;
 }
 
 /* Timeline Cards View */
@@ -587,7 +707,7 @@ main {
 .timeline-date-count {
     margin-left: auto;
     padding: 6px 14px;
-    background: #667eea;
+    background: #3b82f6;
     color: white;
     border-radius: 20px;
     font-size: 13px;
@@ -609,7 +729,7 @@ main {
     padding: 20px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
     transition: all 0.3s;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #3b82f6;
 }
 
 .trip-card:hover {
@@ -636,7 +756,7 @@ main {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
     color: white;
     display: flex;
     align-items: center;
@@ -678,7 +798,7 @@ main {
 
 .vehicle-reg {
     font-size: 12px;
-    color: #667eea;
+    color: #3b82f6;
     font-weight: 600;
 }
 
@@ -783,6 +903,7 @@ main {
     max-height: 90vh;
     overflow-y: auto;
     animation: slideUp 0.3s;
+    padding: 30px;
 }
 
 @keyframes slideUp {
@@ -858,7 +979,7 @@ main {
 
 .form-group input:focus, .form-group select:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: #3b82f6;
 }
 
 .modal-actions {
@@ -884,6 +1005,70 @@ main {
     border-radius: 8px;
 }
 
+/* Tipos de combustible */
+.fuel-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: white;
+}
+
+.checkbox-label:hover {
+    border-color: #3b82f6;
+    background: #f8f9ff;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+}
+
+.checkbox-label span {
+    font-weight: 500;
+    color: #333;
+}
+
+/* Estados del combustible en tarjetas */
+.fuel-status {
+    background: #e9ecef;
+    padding: 6px 10px;
+    border-radius: 6px;
+    margin: 2px 0;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.fuel-status.full {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+}
+
+.fuel-status.medium {
+    background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+    color: white;
+}
+
+.fuel-status.low {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+}
+
 /* Vehicle Detail View */
 .vehicle-detail-trips {
     display: flex;
@@ -903,7 +1088,7 @@ main {
     font-size: 18px;
     margin-bottom: 15px;
     padding-bottom: 10px;
-    border-bottom: 2px solid #667eea;
+    border-bottom: 2px solid #3b82f6;
 }
 
 .vehicle-icon {
@@ -967,6 +1152,102 @@ main {
     }
     
     .form-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Assignments Styles */
+.assignments-container {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Assignment Modal Specific Styles */
+#assignmentModal .modal-content {
+    padding: 40px;
+}
+
+#assignmentModal .form-grid {
+    gap: 20px;
+}
+
+#assignmentModal .form-group {
+    margin-bottom: 20px;
+}
+
+#assignmentModal .modal-actions {
+    margin-top: 30px;
+    gap: 15px;
+}
+
+.assignments-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.assignments-table th,
+.assignments-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.assignments-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #333;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-revoked {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Dual Fuel Styles */
+.dual-fuel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.fuel-tank-section {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 15px;
+    background: #f9f9f9;
+}
+
+.fuel-tank-section h5 {
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 16px;
+}
+
+.fuel-tank-section .form-group {
+    margin-bottom: 10px;
+}
+
+.fuel-tank-section .form-group:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+    .dual-fuel-grid {
         grid-template-columns: 1fr;
     }
 }

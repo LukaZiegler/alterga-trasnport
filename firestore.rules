@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Vehículos - usuarios autenticados pueden leer todos
+    match /vehicles/{vehicleId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+      // Reglas para reportes de averías
+    match /issues/{issueId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Viajes - solo el propietario puede acceder
+    match /trips/{tripId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Repostajes - solo el propietario puede acceder
+    match /refuels/{refuelId} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // Autorizaciones de vehículos - managers pueden crear, drivers pueden leer las suyas
+    match /authorizations/{authId} {
+    allow create: if request.auth != null;
+    allow read: if request.auth != null && (
+    request.auth.uid == resource.data.userId ||
+    request.auth.uid == resource.data.driverId
+    );
+    allow write: if request.auth != null && request.auth.uid == resource.data.userId;
+    }
+
+     // Transferencias de vehículos - usuarios autenticados pueden crear, leer y escribir
+     match /transfers/{transferId} {
+       allow read, write: if request.auth != null;
+       allow create: if request.auth != null;
+     }
+   }
+}

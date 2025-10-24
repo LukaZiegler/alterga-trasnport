@@ -24,13 +24,28 @@ let selectedImageFile = null;
 let isCardView = true;
 
 // Authentication
+let authListenerCount = 0;
 auth.onAuthStateChanged((user) => {
+    authListenerCount++;
+    console.log(`🔐 Auth listener ejecutado #${authListenerCount}`);
+
     if (user) {
+        console.log('👤 Usuario autenticado:', user.email);
         currentUser = user;
         userEmailSpan.textContent = user.email;
         setupVehiclesListener();
+        setupRefuelsListener();
         setupTripsListener();
+        setupAssignmentsListener();
+        setupTransfersListener();
     } else {
+        console.log('🚪 Usuario no autenticado, redirigiendo...');
+        // Limpiar estado
+        isVehiclesListenerActive = false;
+        if (vehiclesListener) {
+            vehiclesListener();
+            vehiclesListener = null;
+        }
         window.location.href = 'index.html';
     }
 });
@@ -46,16 +61,24 @@ logoutBtn.addEventListener('click', async () => {
 
 // Navigation
 navTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        const viewName = tab.dataset.view;
-        
-        // Update active tab
-        navTabs.forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        
-        // Update active view
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById(viewName + 'View').classList.add('active');
+tab.addEventListener('click', () => {
+const viewName = tab.dataset.view;
+
+// Update active tab
+navTabs.forEach(t => t.classList.remove('active'));
+tab.classList.add('active');
+
+// Update active view
+document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+document.getElementById(viewName + 'View').classList.add('active');
+
+        // Load data for specific views
+        if (viewName === 'assignments') {
+        loadAssignments();
+        }
+        if (viewName === 'transfers') {
+            loadTransfers();
+        }
     });
 });
 
@@ -82,6 +105,56 @@ document.getElementById('status').addEventListener('change', (e) => {
         driverGroup.style.display = 'none';
     }
 });
+
+// Update fuel details based on selected fuels
+function updateFuelDetails() {
+    const selectedFuels = [];
+    if (document.getElementById('fuelGasolina').checked) selectedFuels.push('Gasolina');
+    if (document.getElementById('fuelDiesel').checked) selectedFuels.push('Diesel');
+    if (document.getElementById('fuelGas').checked) selectedFuels.push('Gas');
+
+    const dualDetails = document.getElementById('dualFuelDetails');
+    const singleCapacity = document.getElementById('fuelCapacity').parentElement;
+    const singleCurrent = document.getElementById('currentFuel').parentElement;
+
+    if (selectedFuels.length === 2) {
+        dualDetails.style.display = 'block';
+        singleCapacity.style.display = 'none';
+        singleCurrent.style.display = 'none';
+
+        document.getElementById('tank1Label').textContent = `Tanque ${selectedFuels[0]}`;
+        document.getElementById('tank2Label').textContent = `Tanque ${selectedFuels[1]}`;
+
+        // Set required for dual fields
+        document.getElementById('fuelCapacity1').required = true;
+        document.getElementById('currentFuel1').required = true;
+        document.getElementById('fuelCapacity2').required = true;
+        document.getElementById('currentFuel2').required = true;
+
+        // Remove required from single
+        document.getElementById('currentFuel').required = false;
+        document.getElementById('fuelCapacity').required = false;
+    } else {
+        dualDetails.style.display = 'none';
+        singleCapacity.style.display = 'block';
+        singleCurrent.style.display = 'block';
+
+        // Set required for single fields
+        document.getElementById('currentFuel').required = true;
+        document.getElementById('fuelCapacity').required = false; // capacity optional
+
+        // Remove required from dual
+        document.getElementById('fuelCapacity1').required = false;
+        document.getElementById('currentFuel1').required = false;
+        document.getElementById('fuelCapacity2').required = false;
+        document.getElementById('currentFuel2').required = false;
+    }
+}
+
+// Add event listeners for fuel checkboxes
+document.getElementById('fuelGasolina').addEventListener('change', updateFuelDetails);
+document.getElementById('fuelDiesel').addEventListener('change', updateFuelDetails);
+document.getElementById('fuelGas').addEventListener('change', updateFuelDetails);
 
 // Image preview
 vehicleImageInput.addEventListener('change', (e) => {
@@ -116,6 +189,13 @@ function closeModal() {
     currentEditVehicleId = null;
     selectedImageFile = null;
     imagePreview.innerHTML = '';
+
+    // Clear dual fuel fields
+    document.getElementById('fuelCapacity1').value = '';
+    document.getElementById('currentFuel1').value = '';
+    document.getElementById('fuelCapacity2').value = '';
+    document.getElementById('currentFuel2').value = '';
+    document.getElementById('dualFuelDetails').style.display = 'none';
 }
 
 async function loadVehicleData(vehicleId) {
@@ -138,6 +218,28 @@ async function loadVehicleData(vehicleId) {
             document.getElementById('dateTo').value = data.dateTo || '';
             document.getElementById('status').value = data.status || 'available';
             document.getElementById('currentDriverName').value = data.currentDriver || '';
+
+            // Cargar tipos de combustible
+            const fuelTypes = data.fuelTypes || ['Gasolina'];
+            document.getElementById('fuelGasolina').checked = fuelTypes.includes('Gasolina');
+            document.getElementById('fuelDiesel').checked = fuelTypes.includes('Diesel');
+            document.getElementById('fuelGas').checked = fuelTypes.includes('Gas');
+
+            // Update fuel details display
+            updateFuelDetails();
+
+            // Cargar capacidades y litros actuales
+            if (fuelTypes.length === 2) {
+                const fuelCapacities = data.fuelCapacities || [];
+                const currentFuels = data.currentFuels || [];
+                document.getElementById('fuelCapacity1').value = fuelCapacities[0] || '';
+                document.getElementById('currentFuel1').value = currentFuels[0] || '';
+                document.getElementById('fuelCapacity2').value = fuelCapacities[1] || '';
+                document.getElementById('currentFuel2').value = currentFuels[1] || '';
+            } else {
+                document.getElementById('currentFuel').value = data.currentFuel || '';
+                document.getElementById('fuelCapacity').value = data.fuelCapacity || '';
+            }
             
             // Show current image preview
             if (data.imageUrl) {
@@ -160,7 +262,34 @@ async function loadVehicleData(vehicleId) {
 // Vehicle CRUD
 vehicleForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
+    console.log('💾 Guardando vehículo...', currentEditVehicleId ? 'Editando:' + currentEditVehicleId : 'Creando nuevo');
+
+    // Validar tipos de combustible
+    const selectedFuels = [];
+    if (document.getElementById('fuelGasolina').checked) selectedFuels.push('Gasolina');
+    if (document.getElementById('fuelDiesel').checked) selectedFuels.push('Diesel');
+    if (document.getElementById('fuelGas').checked) selectedFuels.push('Gas');
+
+    if (selectedFuels.length === 0) {
+        alert('Debes seleccionar al menos un tipo de combustible');
+        return;
+    }
+
+    if (selectedFuels.length > 2) {
+        alert('Puedes seleccionar máximo 2 tipos de combustible');
+        return;
+    }
+
+    // Validar combinaciones permitidas
+    if (selectedFuels.length === 2) {
+        const invalidCombo = selectedFuels.includes('Gasolina') && selectedFuels.includes('Diesel');
+        if (invalidCombo) {
+            alert('No se permite la combinación Gasolina + Diesel. Usa Gasolina + Gas o Diesel + Gas.');
+            return;
+        }
+    }
+
     try {
         let imageUrl = '';
         
@@ -182,14 +311,35 @@ vehicleForm.addEventListener('submit', async (e) => {
             imageUrl = doc.data().imageUrl || '';
         }
         
+        let currentFuel, fuelCapacity, fuelCapacities, currentFuels;
+        if (selectedFuels.length === 2) {
+            fuelCapacities = [
+                parseFloat(document.getElementById('fuelCapacity1').value) || null,
+                parseFloat(document.getElementById('fuelCapacity2').value) || null
+            ];
+            currentFuels = [
+                parseFloat(document.getElementById('currentFuel1').value) || 0,
+                parseFloat(document.getElementById('currentFuel2').value) || 0
+            ];
+            currentFuel = null; // Not used for dual
+            fuelCapacity = null;
+        } else {
+            currentFuel = parseFloat(document.getElementById('currentFuel').value);
+            fuelCapacity = parseFloat(document.getElementById('fuelCapacity').value) || null;
+            fuelCapacities = null;
+            currentFuels = null;
+        }
+
         const vehicleData = {
             registration: document.getElementById('registration').value,
             model: document.getElementById('model').value,
             brand: document.getElementById('brand').value,
             year: parseInt(document.getElementById('year').value) || null,
             currentKm: parseFloat(document.getElementById('currentKm').value),
-            currentFuel: parseFloat(document.getElementById('currentFuel').value),
-            fuelCapacity: parseFloat(document.getElementById('fuelCapacity').value) || null,
+            currentFuel: currentFuel,
+            fuelCapacity: fuelCapacity,
+            fuelCapacities: fuelCapacities,
+            currentFuels: currentFuels,
             tireType: document.getElementById('tireType').value,
             lastServiceKm: parseFloat(document.getElementById('lastServiceKm').value) || 0,
             fuelNorm: parseFloat(document.getElementById('fuelNorm').value) || null,
@@ -197,8 +347,9 @@ vehicleForm.addEventListener('submit', async (e) => {
             dateFrom: document.getElementById('dateFrom').value,
             dateTo: document.getElementById('dateTo').value,
             status: document.getElementById('status').value,
-            currentDriver: document.getElementById('status').value === 'occupied' 
-                ? document.getElementById('currentDriverName').value 
+            fuelTypes: selectedFuels,
+            currentDriver: document.getElementById('status').value === 'occupied'
+                ? document.getElementById('currentDriverName').value
                 : null,
             imageUrl: imageUrl,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -212,133 +363,429 @@ vehicleForm.addEventListener('submit', async (e) => {
             await db.collection('vehicles').add(vehicleData);
         }
         
+        console.log('✅ Vehículo guardado correctamente:', currentEditVehicleId || 'Nuevo vehículo');
         closeModal();
         // No llamamos loadVehicles() - el listener actualiza automáticamente
     } catch (error) {
-        console.error('Błąd podczas zapisywania pojazdu:', error);
+        console.error('❌ Error al guardar vehículo:', error);
         alert('Błąd podczas zapisywania pojazdu: ' + error.message);
     }
 });
 
+// Fuel gauge icons
+const fuelIcons = {
+full: `<svg width="20" height="20" viewBox="0 0 20 20">
+<rect x="2" y="2" width="16" height="16" fill="#4CAF50" rx="2"/>
+<rect x="6" y="6" width="8" height="8" fill="#fff"/>
+<rect x="8" y="8" width="4" height="4" fill="#4CAF50"/>
+</svg>`,
+half: `<svg width="20" height="20" viewBox="0 0 20 20">
+<rect x="2" y="2" width="16" height="16" fill="#FF9800" rx="2"/>
+<rect x="2" y="10" width="16" height="8" fill="#ddd"/>
+<rect x="6" y="6" width="8" height="8" fill="#fff"/>
+<rect x="8" y="8" width="4" height="2" fill="#FF9800"/>
+</svg>`,
+low: `<svg width="20" height="20" viewBox="0 0 20 20">
+<rect x="2" y="2" width="16" height="16" fill="#F44336" rx="2"/>
+<rect x="2" y="2" width="16" height="12" fill="#ddd"/>
+<rect x="6" y="6" width="8" height="8" fill="#fff"/>
+<rect x="8" y="8" width="4" height="1" fill="#F44336"/>
+</svg>`
+};
+
+function getFuelIcon(percentage) {
+    if (percentage >= 75) return fuelIcons.full;
+    if (percentage >= 25) return fuelIcons.half;
+    return fuelIcons.low;
+}
+
 // Real-time listener for vehicles
+let vehiclesListener = null;
+let isVehiclesListenerActive = false;
+
+// Listener for fuel refills
+let refuelsListener = null;
+
+// Listener for assignments
+let assignmentsListener = null;
+
 function setupVehiclesListener() {
-    db.collection('vehicles')
+    // Evitar configurar múltiples listeners
+    if (isVehiclesListenerActive) {
+        return;
+    }
+
+    // Limpiar listener anterior si existe
+    if (vehiclesListener) {
+        vehiclesListener();
+        vehiclesListener = null;
+    }
+
+    isVehiclesListenerActive = true;
+
+    vehiclesListener = db.collection('vehicles')
         .where('userId', '==', currentUser.uid)
         .onSnapshot((snapshot) => {
-            renderVehicles(snapshot);
+            const changes = snapshot.docChanges();
+                // Verificar si todos los cambios son "added" (primera carga)
+            const allAdded = changes.length > 0 && changes.every(change => change.type === 'added');
+            if (allAdded && changes.length > 1) {
+                renderVehicles(snapshot);
+                return;
+            }
+
+            // Solo renderizar si hay cambios reales (no primera carga masiva)
+            if (changes.length > 0) {
+                renderVehicles(snapshot);
+            }
         }, (error) => {
-            console.error('Błąd w słuchaczu pojazdów:', error);
+            console.error('❌ Error en listener de vehículos:', error);
+            isVehiclesListenerActive = false;
         });
 }
 
-function renderVehicles(snapshot) {
-    try {
-        
-        const vehiclesGrid = document.getElementById('vehiclesGrid');
-        const vehicleFilterSelect = document.getElementById('vehicleFilter');
-        
-        if (snapshot.empty) {
-            vehiclesGrid.innerHTML = `
-                <div class="empty-state" style="grid-column: 1/-1;">
-                    <div class="empty-state-icon">🚗</div>
-                    <h3>Nie ma zarejestrowanych pojazdów</h3>
-                    <p>Zacznij od dodania pierwszego pojazdu do floty</p>
-                </div>
-            `;
-            return;
-        }
-        
-        vehiclesGrid.innerHTML = '';
-        vehicleFilterSelect.innerHTML = '<option value="">Wszystkie pojazdy</option>';
-        
-        snapshot.forEach(doc => {
-            const vehicle = doc.data();
-            const vehicleId = doc.id;
-            
-            // Add to filter
-            const option = document.createElement('option');
-            option.value = vehicleId;
-            option.textContent = `${vehicle.brand} ${vehicle.model} - ${vehicle.registration}`;
-            vehicleFilterSelect.appendChild(option);
-            
-            // Calcular si necesita servicio (cada 10,000 km)
-            const lastService = vehicle.lastServiceKm || 0;
-            const kmSinceService = vehicle.currentKm - lastService;
-            const needsService = kmSinceService >= 10000;
-            const kmUntilService = needsService ? 0 : 10000 - kmSinceService;
-            
-            // Obtener estado del vehículo
-            const status = vehicle.status || 'available';
-            let statusIcon = '';
-            let statusText = '';
-            let statusClass = status;
-            
-            if (status === 'broken') {
-                statusIcon = '🔴';
-                statusText = 'USZKODZONY';
-            } else if (status === 'occupied') {
-                statusIcon = '🔵';
-                statusText = vehicle.currentDriver || 'Zajęty';
-            } else {
-                statusIcon = '✅';
-                statusText = 'Dostępny';
+// Listener for fuel refills
+function setupRefuelsListener() {
+refuelsListener = db.collection('refuels')
+.where('userId', '==', currentUser.uid)
+.where('reportedAt', '>', new Date(Date.now() - 24 * 60 * 60 * 1000)) // Últimas 24 horas
+.orderBy('reportedAt', 'desc')
+.onSnapshot((snapshot) => {
+snapshot.docChanges().forEach(change => {
+if (change.type === 'added') {
+const refuel = change.doc.data();
+showRefuelNotification(refuel);
+updateVehicleFuel(refuel);
+}
+});
+}, (error) => {
+console.error('Error en listener de recargas:', error);
+});
+}
+
+// Listener for assignments
+function setupAssignmentsListener() {
+    assignmentsListener = db.collection('authorizations')
+        .where('userId', '==', currentUser.uid)
+        .onSnapshot((snapshot) => {
+            // Reload assignments if assignments view is active
+            const activeView = document.querySelector('.view.active');
+            if (activeView && activeView.id === 'assignmentsView') {
+                loadAssignments();
             }
-            
-            // Icono de neumático
-            const tireIcon = vehicle.tireType === 'winter' ? '❄️' : '☀️';
-            const tireText = vehicle.tireType === 'winter' ? 'Zima' : 'Lato';
-            
-            // Badge de llaves
-            const keysDelivered = vehicle.keysDelivered || false;
-            const keysDeliveredTo = vehicle.keysDeliveredTo || '';
-            
-            // Create vehicle card
+        }, (error) => {
+            console.error('Error en listener de asignaciones:', error);
+        });
+}
+
+// Listener for transfers
+let transfersListener = null;
+function setupTransfersListener() {
+    transfersListener = db.collection('transfers')
+        .where('fromUserId', '==', currentUser.uid)
+        .onSnapshot((snapshot) => {
+            // Reload transfers if transfers view is active
+            const activeView = document.querySelector('.view.active');
+            if (activeView && activeView.id === 'transfersView') {
+                loadTransfers();
+            }
+        }, (error) => {
+            console.error('Error en listener de transferencias:', error);
+        });
+}
+
+// Update vehicle fuel after refuel
+async function updateVehicleFuel(refuel) {
+    try {
+        const vehicleDoc = await db.collection('vehicles').doc(refuel.vehicleId).get();
+        if (!vehicleDoc.exists) return;
+
+        const vehicle = vehicleDoc.data();
+        const fuelTypes = vehicle.fuelTypes || ['Gasolina'];
+        const liters = refuel.liters || 0;
+        const fuelType = refuel.fuelType;
+
+        if (fuelTypes.length === 1) {
+            // Single fuel
+            if (fuelTypes[0] === fuelType) {
+                const capacity = vehicle.fuelCapacity || 80;
+                const newFuel = Math.min((vehicle.currentFuel || 0) + liters, capacity);
+                await db.collection('vehicles').doc(refuel.vehicleId).update({
+                    currentFuel: newFuel,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        } else {
+            // Dual fuel
+            const index = fuelTypes.indexOf(fuelType);
+            if (index !== -1) {
+                const fuelCapacities = vehicle.fuelCapacities || [80, 80];
+                const currentFuels = vehicle.currentFuels || [0, 0];
+                currentFuels[index] = Math.min(currentFuels[index] + liters, fuelCapacities[index]);
+                await db.collection('vehicles').doc(refuel.vehicleId).update({
+                    currentFuels: currentFuels,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error updating vehicle fuel:', error);
+    }
+}
+
+// Mostrar notificación de recarga de combustible
+function showRefuelNotification(refuel) {
+
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = 'refuel-notification';
+    notification.innerHTML = `
+        <div class="refuel-icon">⛽</div>
+        <div class="refuel-text">
+            <strong>${refuel.driverName}</strong> está recargando combustible<br>
+            <small>${refuel.liters}L de ${refuel.fuelType}</small>
+        </div>
+    `;
+
+    // Agregar al DOM
+    document.body.appendChild(notification);
+
+    // Mostrar con animación
+    setTimeout(() => notification.classList.add('visible'), 100);
+
+    // Ocultar después de 2 minutos
+    setTimeout(() => {
+        notification.classList.remove('visible');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 500);
+    }, 120000); // 2 minutos
+}
+
+// Obtener el último reporte de avería de un vehículo
+async function getLatestIssue(vehicleId) {
+    try {
+        const snapshot = await db.collection('issues')
+            .where('vehicleId', '==', vehicleId)
+            .orderBy('reportedAt', 'desc')
+            .limit(1)
+            .get();
+
+        if (!snapshot.empty) {
+            return snapshot.docs[0].data();
+        }
+        return null;
+    } catch (error) {
+        console.error('Error obteniendo reporte de avería:', error);
+        return null;
+    }
+}
+
+async function renderVehicles(snapshot) {
+try {
+const vehiclesGrid = document.getElementById('vehiclesGrid');
+        const vehicleFilterSelect = document.getElementById('vehicleFilter');
+
+// Limpiar completamente antes de renderizar
+        vehiclesGrid.innerHTML = '';
+
+if (snapshot.empty) {
+    vehiclesGrid.innerHTML = `
+                <div class="empty-state" style="grid-column: 1/-1;">
+            <div class="empty-state-icon">🚗</div>
+                <h3>Nie ma zarejestrowanych pojazdów</h3>
+                <p>Zacznij od dodania pierwszego pojazdu do floty</p>
+            </div>
+        `;
+return;
+}
+
+vehicleFilterSelect.innerHTML = '<option value="">Wszystkie pojazdy</option>';
+
+// Procesar vehículos y obtener reportes de avería si es necesario
+const vehiclePromises = snapshot.docs.map(async (doc) => {
+const vehicle = doc.data();
+const vehicleId = doc.id;
+
+// Add to filter
+const option = document.createElement('option');
+option.value = vehicleId;
+option.textContent = `${vehicle.brand} ${vehicle.model} - ${vehicle.registration}`;
+vehicleFilterSelect.appendChild(option);
+
+// Calcular si necesita servicio (cada 10,000 km)
+const lastService = vehicle.lastServiceKm || 0;
+const kmSinceService = vehicle.currentKm - lastService;
+const needsService = kmSinceService >= 10000;
+const kmUntilService = needsService ? 0 : 10000 - kmSinceService;
+
+            const fuelTypes = vehicle.fuelTypes || ['Gasolina'];
+
+            // Calcular estado del combustible
+            let fuelInfo = '';
+            let fuelStatusClass = 'low';
+            if (fuelTypes.length === 2) {
+                const fuelCapacities = vehicle.fuelCapacities || [80, 80];
+                const currentFuels = vehicle.currentFuels || [0, 0];
+                const percentages = fuelCapacities.map((cap, i) => ((currentFuels[i] / cap) * 100));
+                fuelInfo = `${fuelTypes[0]}: ${Math.round(percentages[0])}% | ${fuelTypes[1]}: ${Math.round(percentages[1])}%`;
+                // Use average for color
+                const avgPercentage = percentages.reduce((a, b) => a + b, 0) / percentages.length;
+                if (avgPercentage >= 75) fuelStatusClass = 'full';
+                else if (avgPercentage >= 25) fuelStatusClass = 'medium';
+            } else {
+                const fuelCapacity = vehicle.fuelCapacity || 80;
+                const currentFuel = vehicle.currentFuel || 0;
+                const fuelPercentage = (currentFuel / fuelCapacity) * 100;
+                fuelInfo = `${Math.round(fuelPercentage)}%`;
+                if (fuelPercentage >= 75) fuelStatusClass = 'full';
+                else if (fuelPercentage >= 25) fuelStatusClass = 'medium';
+            }
+
+// Obtener estado del vehículo
+let status = vehicle.status || 'available';
+let statusIcon = '';
+let statusText = '';
+let statusClass = status;
+            let issueTooltip = '';
+
+// 🔧 Detectar si tiene avería leve
+            const hasMinorIssue = vehicle.status === 'minor_issue';
+const hasIssue = hasMinorIssue || vehicle.status === 'broken';
+
+// Si tiene avería, obtener el último reporte
+if (hasIssue) {
+const latestIssue = await getLatestIssue(vehicleId);
+if (latestIssue) {
+const issueType = latestIssue.issueType === 'leve' ? 'Avería Leve' : 'Avería Grave';
+const date = new Date(latestIssue.dateTime).toLocaleDateString('es-ES');
+const driver = latestIssue.driverName || 'Conductor desconocido';
+                    issueTooltip = `${issueType}
+Reportado por: ${driver}
+Fecha: ${date}
+Descripción: ${latestIssue.description}`;
+                }
+            }
+
+// Detectar si tiene avería para mostrar tooltip
+
+// Si tiene avería leve, pero también está ocupado o disponible, mantenemos el color original
+if (hasMinorIssue) {
+// Conserva el estado real (occupied o available)
+status = vehicle.currentDriver ? 'occupied' : 'available';
+}
+
+if (status === 'broken') {
+    statusIcon = '🔴';
+statusText = 'USZKODZONY';
+statusClass = 'broken';
+} else if (status === 'occupied') {
+    statusIcon = '🔵';
+                statusText = vehicle.currentDriver || 'Zajęty';
+    statusClass = 'occupied';
+} else {
+    statusIcon = '✅';
+    statusText = 'Dostępny';
+    statusClass = 'available';
+}
+
+// Si tiene avería leve, cambia el color y añade ícono más visible
+if (hasMinorIssue) {
+    statusIcon = '🔧'; // Solo el ícono de reparación
+    statusText += ' (Avería)'; // Agrega texto explicativo
+    statusClass = 'minor_issue'; // Usa clase especial con color amarillo
+}
+
+
+// Icono de neumático
+const tireIcon = vehicle.tireType === 'winter' ? '❄️' : '☀️';
+const tireText = vehicle.tireType === 'winter' ? 'Zima' : 'Lato';
+
+// Badge de llaves
+const keysDelivered = vehicle.keysDelivered || false;
+const keysDeliveredTo = vehicle.keysDeliveredTo || '';
+
+// Create vehicle card
             const card = document.createElement('div');
             card.className = 'vehicle-card clickable';
-            card.onclick = () => showVehicleDetail(vehicleId);
-            card.innerHTML = `
-                <div class="vehicle-status-badge ${statusClass}">
+card.onclick = () => showVehicleDetail(vehicleId);
+
+let badgeHtml;
+if (issueTooltip) {
+                badgeHtml = `<div class="tooltip-container">
+                    <div class="vehicle-status-badge ${statusClass}">
+                        ${statusIcon} ${statusText}
+                    </div>
+                    <div class="tooltip-text">${issueTooltip}</div>
+            </div>`;
+            } else {
+                badgeHtml = `<div class="vehicle-status-badge ${statusClass}">
                     ${statusIcon} ${statusText}
-                </div>
-                ${needsService ? '<div class="service-alert">⚠️ Serwis wymagany</div>' : ''}
-                <div class="vehicle-image">
-                    ${vehicle.imageUrl 
-                        ? `<img src="${vehicle.imageUrl}" alt="${vehicle.model}">` 
-                        : `<img src="car_default.png" alt="${vehicle.model}">`
-                    }
-                </div>
-                ${keysDelivered ? `
-                    <div class="keys-badge-inline">
-                        <span class="keys-icon">🔑</span>
-                        <span class="keys-text">Klucze przekazane do <strong>${keysDeliveredTo}</strong></span>
-                    </div>
-                ` : ''}
-                <div class="vehicle-info">
-                    <h3>${vehicle.brand} ${vehicle.model}</h3>
-                    <div class="vehicle-registration">${vehicle.registration}</div>
-                    
-                    <div class="vehicle-stats">
-                        <div class="stat">
-                            <div class="stat-label">📍 Przebieg</div>
-                            <div class="stat-value">${vehicle.currentKm.toLocaleString()} km</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label"><img src="gasoline-level.png" class="fuel-icon"> Paliwo</div>
-                            <div class="stat-value">${vehicle.currentFuel} L</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-label">${tireIcon} Opony</div>
-                            <div class="stat-value">${tireText}</div>
-                        </div>
-                        <div class="stat ${needsService ? 'stat-warning' : ''}">
-                            <div class="stat-label">${needsService ? '⚠️' : '🔧'} Następny Serwis</div>
-                            <div class="stat-value">${needsService ? 'Teraz' : `${kmUntilService.toLocaleString()} km`}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="vehicle-actions">
-                        <button class="btn-edit" onclick="event.stopPropagation(); editVehicle('${vehicleId}')">Edytuj</button>
-                        ${keysDelivered 
+                </div>`;
+}
+
+            card.innerHTML = `
+                ${badgeHtml}
+${needsService ? '<div class="service-alert">⚠️ Serwis wymagany</div>' : ''}
+<div class="vehicle-image">
+${vehicle.imageUrl
+    ? `<img src="${vehicle.imageUrl}" alt="${vehicle.model}">`
+: `<img src="car_default.png" alt="${vehicle.model}">`
+}
+</div>
+${keysDelivered ? `
+<div class="keys-badge-inline">
+<span class="keys-icon">🔑</span>
+<span class="keys-text">Klucze przekazane do <strong>${keysDeliveredTo}</strong></span>
+</div>
+` : ''}
+<div class="vehicle-info">
+<h3>${vehicle.brand} ${vehicle.model}</h3>
+<div class="vehicle-registration">${vehicle.registration}</div>
+
+<div class="vehicle-stats">
+<div class="stat">
+    <div class="stat-label">📍 Przebieg</div>
+        <div class="stat-value">${vehicle.currentKm.toLocaleString()} km</div>
+    </div>
+    <div class="stat">
+    <div class="stat-label"><img src="gasoline-level.png" class="fuel-icon"> Paliwo</div>
+    <div class="stat-value">${vehicle.currentFuel?.toFixed(1) || '0.0'} L</div>
+    </div>
+
+                        <!-- Estados de combustible -->
+                        ${fuelTypes.length === 2 ?
+                        fuelTypes.map((fuelType, i) => {
+                        const fuelCapacities = vehicle.fuelCapacities || [80, 80];
+                        const currentFuels = vehicle.currentFuels || [0, 0];
+                        const percentage = (currentFuels[i] / fuelCapacities[i]) * 100;
+                        return `<div class="fuel-status">
+                        ${getFuelIcon(percentage)}
+                        <span>${fuelType}</span>
+                            <small>${percentage.toFixed(0)}%</small>
+                            </div>`;
+                        }).join('') :
+                        `<div class="fuel-status">
+                        ${getFuelIcon((vehicle.currentFuel / (vehicle.fuelCapacity || 80)) * 100)}
+                            <span>${fuelTypes[0]}</span>
+                                <small>${fuelInfo}</small>
+                            </div>`
+                        }
+<div class="stat">
+    <div class="stat-label">${tireIcon} Opony</div>
+    <div class="stat-value">${tireText}</div>
+    </div>
+        <div class="stat ${needsService ? 'stat-warning' : ''}">
+                <div class="stat-label">${needsService ? '⚠️' : '🔧'} Następny Serwis</div>
+                <div class="stat-value">${needsService ? 'Teraz' : `${kmUntilService.toLocaleString()} km`}</div>
+            </div>
+            </div>
+
+            <div class="vehicle-actions">
+                    <button class="btn-edit" onclick="event.stopPropagation(); editVehicle('${vehicleId}')">Edytuj</button>
+                        ${keysDelivered
                         ? `<button class="btn-keys" onclick="event.stopPropagation(); returnKeys('${vehicleId}')">Klucze Zwrócone</button>`
                         : ''
                         }
@@ -346,11 +793,15 @@ function renderVehicles(snapshot) {
                     </div>
                 </div>
             `;
-            
+
             vehiclesGrid.appendChild(card);
         });
+
+        // Esperar a que todas las promesas se resuelvan
+        await Promise.all(vehiclePromises);
+
     } catch (error) {
-        console.error('Błąd podczas renderowania pojazdów:', error);
+        console.error('Error durante renderizado de vehículos:', error);
     }
 }
 
@@ -360,6 +811,7 @@ async function loadVehicles() {
 }
 
 function editVehicle(vehicleId) {
+    console.log('✏️ Editando vehículo:', vehicleId);
     openModal(vehicleId);
 }
 
@@ -1179,9 +1631,236 @@ function toggleTripDetails(tripId) {
     }
 }
 
+// Assignments Management
+const newAssignmentBtn = document.getElementById('newAssignmentBtn');
+const assignmentModal = document.getElementById('assignmentModal');
+const assignmentForm = document.getElementById('assignmentForm');
+const cancelAssignmentBtn = document.getElementById('cancelAssignmentBtn');
+const assignmentModalClose = document.getElementById('assignmentModalClose');
+
+// Assignment modal controls
+newAssignmentBtn.addEventListener('click', () => {
+    openAssignmentModal();
+});
+
+assignmentModalClose.addEventListener('click', closeAssignmentModal);
+cancelAssignmentBtn.addEventListener('click', closeAssignmentModal);
+
+window.addEventListener('click', (e) => {
+    if (e.target === assignmentModal) {
+        closeAssignmentModal();
+    }
+});
+
+// Assignment form submission
+assignmentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await saveAssignment();
+});
+
+function openAssignmentModal() {
+    loadVehiclesForAssignment();
+    loadDriversForAssignment();
+    assignmentModal.classList.add('active');
+}
+
+function closeAssignmentModal() {
+    assignmentModal.classList.remove('active');
+    assignmentForm.reset();
+}
+
+async function loadVehiclesForAssignment() {
+    const vehicleSelect = document.getElementById('assignmentVehicle');
+    vehicleSelect.innerHTML = '<option value="">Wybierz pojazd</option>';
+
+    try {
+        const querySnapshot = await db.collection('vehicles').where('userId', '==', currentUser.uid).get();
+        querySnapshot.forEach((doc) => {
+            const vehicle = doc.data();
+            const option = document.createElement('option');
+            option.value = doc.id;
+            option.textContent = `${vehicle.brand} ${vehicle.model} - ${vehicle.registration}`;
+            vehicleSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading vehicles for assignment:', error);
+    }
+}
+
+async function loadDriversForAssignment() {
+    const driverSelect = document.getElementById('assignmentDriver');
+    driverSelect.innerHTML = '<option value="">Wybierz kierowcę</option>';
+
+    try {
+        // For now, we'll use a simple approach - in a real app, you'd have a users collection
+        // For demo, we'll add some sample drivers
+        const sampleDrivers = [
+            { id: 'driver1', name: 'Jan Kowalski' },
+            { id: 'driver2', name: 'Marek Nowak' },
+            { id: 'driver3', name: 'Piotr Wiśniewski' },
+        ];
+
+        sampleDrivers.forEach(driver => {
+            const option = document.createElement('option');
+            option.value = driver.id;
+            option.textContent = driver.name;
+            driverSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading drivers for assignment:', error);
+    }
+}
+
+async function saveAssignment() {
+    const vehicleId = document.getElementById('assignmentVehicle').value;
+    const driverId = document.getElementById('assignmentDriver').value;
+    const pin = document.getElementById('assignmentPin').value;
+    const notes = document.getElementById('assignmentNotes').value;
+
+    if (!vehicleId || !driverId) {
+        alert('Proszę wybrać pojazd i kierowcę');
+        return;
+    }
+
+    try {
+        await db.collection('authorizations').add({
+            vehicleId: vehicleId,
+            driverId: driverId,
+            pin: pin || null,
+            notes: notes || null,
+            status: 'active',
+            grantedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            grantedBy: currentUser.uid,
+            userId: currentUser.uid,
+        });
+
+        console.log('✅ Przypisanie utworzone pomyślnie');
+        closeAssignmentModal();
+        // loadAssignments() will be called automatically by listener
+    } catch (error) {
+        console.error('❌ Błąd tworzenia przypisania:', error);
+        alert('Błąd tworzenia przypisania: ' + error.message);
+    }
+}
+
+async function loadAssignments() {
+    const tableBody = document.getElementById('assignmentsTableBody');
+    tableBody.innerHTML = '';
+
+    try {
+        const querySnapshot = await db.collection('authorizations')
+            .where('userId', '==', currentUser.uid)
+            .where('status', '==', 'active')
+            .orderBy('grantedAt', 'desc')
+            .get();
+
+        if (querySnapshot.empty) {
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">Brak aktywnych przypisań</td></tr>';
+            return;
+        }
+
+        for (const doc of querySnapshot.docs) {
+            const assignment = doc.data();
+            const vehicleDoc = await db.collection('vehicles').doc(assignment.vehicleId).get();
+            const vehicle = vehicleDoc.data();
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.registration}` : 'Nieznany pojazd'}</td>
+                <td>${assignment.driverId}</td>
+                <td>${assignment.grantedAt ? new Date(assignment.grantedAt.toDate()).toLocaleString('pl-PL') : 'Brak daty'}</td>
+                <td><span class="status-badge status-${assignment.status}">${assignment.status}</span></td>
+                <td>
+                    <button onclick="revokeAssignment('${doc.id}')" class="btn-secondary">Cofnij</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        }
+    } catch (error) {
+        console.error('Error loading assignments:', error);
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Błąd ładowania przypisań</td></tr>';
+    }
+}
+
+async function revokeAssignment(assignmentId) {
+    if (!confirm('Czy na pewno chcesz cofnąć to przypisanie?')) {
+        return;
+    }
+
+    try {
+        await db.collection('authorizations').doc(assignmentId).update({
+            status: 'revoked',
+            revokedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            revokedBy: currentUser.uid,
+        });
+
+        console.log('✅ Przypisanie cofnięte');
+        // loadAssignments() will be called automatically by listener
+    } catch (error) {
+        console.error('❌ Błąd cofania przypisania:', error);
+        alert('Błąd cofania przypisania: ' + error.message);
+    }
+}
+
+async function loadTransfers() {
+    const tableBody = document.getElementById('transfersTableBody');
+    tableBody.innerHTML = '';
+
+    try {
+        const querySnapshot = await db.collection('transfers')
+            .where('fromUserId', '==', currentUser.uid)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        if (querySnapshot.empty) {
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Brak transferencji</td></tr>';
+            return;
+        }
+
+        for (const doc of querySnapshot.docs) {
+            const transfer = doc.data();
+            const vehicleDoc = await db.collection('vehicles').doc(transfer.vehicleId).get();
+            const vehicle = vehicleDoc.data();
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.registration}` : 'Nieznany pojazd'}</td>
+                <td>${transfer.fromUserId}</td>
+                <td>${transfer.toUserId}</td>
+                <td>${transfer.createdAt ? new Date(transfer.createdAt.toDate()).toLocaleString('pl-PL') : 'Brak daty'}</td>
+                <td><span class="status-badge status-${transfer.status || 'pending'}">${transfer.status || 'pending'}</span></td>
+                <td>
+                    <button onclick="deleteTransfer('${doc.id}')" class="btn-secondary">Eliminar</button>
+                </td>
+            `;
+            tableBody.appendChild(row);
+        }
+    } catch (error) {
+        console.error('Error loading transfers:', error);
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Błąd ładowania transferencji</td></tr>';
+    }
+}
+
+async function deleteTransfer(transferId) {
+    if (!confirm('¿Estás seguro de que quieres eliminar esta transferencia?')) {
+        return;
+    }
+
+    try {
+        await db.collection('transfers').doc(transferId).delete();
+        console.log('✅ Transferencia eliminada');
+        // loadTransfers() will be called automatically by listener
+    } catch (error) {
+        console.error('❌ Error eliminando transferencia:', error);
+        alert('Error eliminando transferencia: ' + error.message);
+    }
+}
+
 // Make functions global for onclick handlers
 window.editVehicle = editVehicle;
 window.deleteVehicle = deleteVehicle;
 window.showVehicleDetail = showVehicleDetail;
 window.returnKeys = returnKeys;
 window.toggleTripDetails = toggleTripDetails;
+window.revokeAssignment = revokeAssignment;
+window.deleteTransfer = deleteTransfer;
