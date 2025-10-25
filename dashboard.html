@@ -20,10 +20,10 @@
                 <h2>Alterga Transport</h2>
             </div>
             <nav class="nav-tabs">
-                <button class="nav-tab active" data-view="vehicles">Pojazdy</button>
-                <button class="nav-tab" data-view="trips">Rejestr Podróży</button>
-                <button class="nav-tab" data-view="assignments">Przypisania Pojazdów</button>
-                 <button class="nav-tab" data-view="transfers">Transferencias</button>
+            <button class="nav-tab active" data-view="vehicles">Pojazdy</button>
+            <button class="nav-tab" data-view="trips">Rejestr Podróży</button>
+            <button class="nav-tab" data-view="assignments">Przypisania Pojazdów</button>
+                 <button class="nav-tab" data-view="issues">Raporty Awarii</button>
             </nav>
             <div class="user-info">
                 <span id="userEmail"></span>
@@ -35,10 +35,9 @@
             <!-- Vista de Vehículos -->
             <div id="vehiclesView" class="view active">
                 <div class="view-header">
-                    <h1>Zarządzanie Flotą</h1>
-                    <button id="addVehicleBtn" class="btn-primary">+ Dodaj Pojazd</button>
+                <h1>Zarządzanie Flotą</h1>
+                <button id="addVehicleBtn" class="btn-primary">+ Dodaj Pojazd</button>
                 </div>
-                
                 <div id="vehiclesGrid" class="vehicles-grid">
                     <!-- Vehículos se cargarán dinámicamente -->
                 </div>
@@ -67,7 +66,6 @@
                 <div class="view-header">
                     <h1>Rejestr Podróży</h1>
                     <div class="header-actions">
-                    <button id="generateTestDataBtn" class="btn-secondary">Generuj Dane Testowe</button>
                     <select id="vehicleFilter" class="filter-select">
                     <option value="">Wszystkie pojazdy</option>
                     </select>
@@ -101,7 +99,6 @@
                         <th>Paliwo Początkowe</th>
                         <th>Paliwo Zużyte</th>
                         <th class="desktop-only">Tankowanie</th>
-                        <th>Zużycie</th>
                         <th class="desktop-only">Olej</th>
                         <th class="desktop-only">Płyn czyszczący</th>
                         <th class="desktop-only account-col">Nr Konta</th>
@@ -142,35 +139,33 @@
                     </div>
                     </div>
 
-             <!-- Vista de Transferencias -->
-             <div id="transfersView" class="view">
-                 <div class="view-header">
-                     <h1>Transferencias de Vehículos</h1>
-                     <button id="newTransferBtn" class="btn-primary">+ Nueva Transferencia</button>
-                 </div>
+                             <!-- Vista de Issues -->
+              <div id="issuesView" class="view">
+                  <div class="view-header">
+                      <h1>Raporty Awarii</h1>
+                      <button id="refreshIssuesBtn" class="btn-secondary">Aktualizuj</button>
+                  </div>
 
-                 <div class="transfers-container">
-                     <div class="table-container">
-                         <table class="trips-table transfers-table">
-                             <thead>
-                                 <tr>
-                                     <th>Vehículo</th>
-                                     <th>De Usuario</th>
-                                     <th>A Usuario</th>
-                                     <th>Fecha</th>
-                                     <th>Estado</th>
-                                     <th>Acciones</th>
-                                 </tr>
-                             </thead>
-                             <tbody id="transfersTableBody">
-                                 <!-- Transfers se cargarán dinámicamente -->
-                             </tbody>
-                         </table>
-                     </div>
-                 </div>
-             </div>
-         </main>
-    </div>
+                  <div class="table-container">
+                      <table class="trips-table issues-table">
+                          <thead>
+                          <tr>
+                          <th>Kierowca</th>
+                          <th>Typ Awarii</th>
+                          <th>Opis</th>
+                          <th>Data</th>
+                          <th>Status</th>
+                          <th>Akcje</th>
+                          </tr>
+                          </thead>
+                          <tbody id="issuesTableBody">
+                              <!-- Issues se cargarán dinámicamente -->
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          </main>
+     </div>
     
     <!-- Modal Agregar/Editar Vehículo -->
     <div id="vehicleModal" class="modal">

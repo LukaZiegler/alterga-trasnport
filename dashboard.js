@@ -10,7 +10,7 @@ const navTabs = document.querySelectorAll('.nav-tab');
 const exportPdfBtn = document.getElementById('exportPdfBtn');
 const selectAllCheckbox = document.getElementById('selectAll');
 const vehicleFilter = document.getElementById('vehicleFilter');
-const generateTestDataBtn = document.getElementById('generateTestDataBtn');
+
 const backToVehiclesBtn = document.getElementById('backToVehiclesBtn');
 const exportVehiclePdfBtn = document.getElementById('exportVehiclePdfBtn');
 const vehicleImageInput = document.getElementById('vehicleImage');
@@ -22,6 +22,7 @@ let currentUser = null;
 let currentVehicleDetail = null;
 let selectedImageFile = null;
 let isCardView = true;
+let issuesListener = null;
 
 // Authentication
 let authListenerCount = 0;
@@ -38,6 +39,7 @@ auth.onAuthStateChanged((user) => {
         setupTripsListener();
         setupAssignmentsListener();
         setupTransfersListener();
+        setupIssuesListener();
     } else {
         console.log('🚪 Usuario no autenticado, redirigiendo...');
         // Limpiar estado
@@ -74,10 +76,13 @@ document.getElementById(viewName + 'View').classList.add('active');
 
         // Load data for specific views
         if (viewName === 'assignments') {
-        loadAssignments();
+            loadAssignments();
         }
         if (viewName === 'transfers') {
-            loadTransfers();
+        loadTransfers();
+        }
+        if (viewName === 'issues') {
+            loadIssues();
         }
     });
 });
@@ -372,30 +377,16 @@ vehicleForm.addEventListener('submit', async (e) => {
     }
 });
 
-// Fuel gauge icons
+// Fuel gauge images
 const fuelIcons = {
-full: `<svg width="20" height="20" viewBox="0 0 20 20">
-<rect x="2" y="2" width="16" height="16" fill="#4CAF50" rx="2"/>
-<rect x="6" y="6" width="8" height="8" fill="#fff"/>
-<rect x="8" y="8" width="4" height="4" fill="#4CAF50"/>
-</svg>`,
-half: `<svg width="20" height="20" viewBox="0 0 20 20">
-<rect x="2" y="2" width="16" height="16" fill="#FF9800" rx="2"/>
-<rect x="2" y="10" width="16" height="8" fill="#ddd"/>
-<rect x="6" y="6" width="8" height="8" fill="#fff"/>
-<rect x="8" y="8" width="4" height="2" fill="#FF9800"/>
-</svg>`,
-low: `<svg width="20" height="20" viewBox="0 0 20 20">
-<rect x="2" y="2" width="16" height="16" fill="#F44336" rx="2"/>
-<rect x="2" y="2" width="16" height="12" fill="#ddd"/>
-<rect x="6" y="6" width="8" height="8" fill="#fff"/>
-<rect x="8" y="8" width="4" height="1" fill="#F44336"/>
-</svg>`
+full: `<img src="fuel90.png" style="width: 100px; height: 100px; object-fit: contain;" alt="Fuel level">`,
+half: `<img src="fuel50.png" style="width: 100px; height: 100px; object-fit: contain;" alt="Fuel level">`,
+low: `<img src="fuel30.png" style="width: 100px; height: 100px; object-fit: contain;" alt="Fuel level">`
 };
 
 function getFuelIcon(percentage) {
-    if (percentage >= 75) return fuelIcons.full;
-    if (percentage >= 25) return fuelIcons.half;
+    if (percentage >= 90) return fuelIcons.full;
+    if (percentage >= 50) return fuelIcons.half;
     return fuelIcons.low;
 }
 
@@ -468,11 +459,7 @@ function setupAssignmentsListener() {
     assignmentsListener = db.collection('authorizations')
         .where('userId', '==', currentUser.uid)
         .onSnapshot((snapshot) => {
-            // Reload assignments if assignments view is active
-            const activeView = document.querySelector('.view.active');
-            if (activeView && activeView.id === 'assignmentsView') {
-                loadAssignments();
-            }
+            // Listener active, but reload only on view change to avoid duplicates
         }, (error) => {
             console.error('Error en listener de asignaciones:', error);
         });
@@ -615,33 +602,33 @@ option.value = vehicleId;
 option.textContent = `${vehicle.brand} ${vehicle.model} - ${vehicle.registration}`;
 vehicleFilterSelect.appendChild(option);
 
-// Calcular si necesita servicio (cada 10,000 km)
-const lastService = vehicle.lastServiceKm || 0;
-const kmSinceService = vehicle.currentKm - lastService;
-const needsService = kmSinceService >= 10000;
-const kmUntilService = needsService ? 0 : 10000 - kmSinceService;
+// Calcular próximo servicio (cada 10,000 km absolutos)
+const nextService = Math.floor(vehicle.currentKm / 10000) * 10000 + 10000;
+const kmUntilService = nextService - vehicle.currentKm;
+const needsService = false; // Siempre mostrar km restantes
 
             const fuelTypes = vehicle.fuelTypes || ['Gasolina'];
 
             // Calcular estado del combustible
             let fuelInfo = '';
             let fuelStatusClass = 'low';
+            let avgFuelPercentage = 0;
             if (fuelTypes.length === 2) {
                 const fuelCapacities = vehicle.fuelCapacities || [80, 80];
                 const currentFuels = vehicle.currentFuels || [0, 0];
                 const percentages = fuelCapacities.map((cap, i) => ((currentFuels[i] / cap) * 100));
                 fuelInfo = `${fuelTypes[0]}: ${Math.round(percentages[0])}% | ${fuelTypes[1]}: ${Math.round(percentages[1])}%`;
                 // Use average for color
-                const avgPercentage = percentages.reduce((a, b) => a + b, 0) / percentages.length;
-                if (avgPercentage >= 75) fuelStatusClass = 'full';
-                else if (avgPercentage >= 25) fuelStatusClass = 'medium';
+                avgFuelPercentage = percentages.reduce((a, b) => a + b, 0) / percentages.length;
+                if (avgFuelPercentage >= 75) fuelStatusClass = 'full';
+                else if (avgFuelPercentage >= 25) fuelStatusClass = 'medium';
             } else {
                 const fuelCapacity = vehicle.fuelCapacity || 80;
                 const currentFuel = vehicle.currentFuel || 0;
-                const fuelPercentage = (currentFuel / fuelCapacity) * 100;
-                fuelInfo = `${Math.round(fuelPercentage)}%`;
-                if (fuelPercentage >= 75) fuelStatusClass = 'full';
-                else if (fuelPercentage >= 25) fuelStatusClass = 'medium';
+                avgFuelPercentage = (currentFuel / fuelCapacity) * 100;
+                fuelInfo = `${Math.round(avgFuelPercentage)}%`;
+                if (avgFuelPercentage >= 75) fuelStatusClass = 'full';
+                else if (avgFuelPercentage >= 25) fuelStatusClass = 'medium';
             }
 
 // Obtener estado del vehículo
@@ -747,49 +734,32 @@ ${keysDelivered ? `
 
 <div class="vehicle-stats">
 <div class="stat">
-    <div class="stat-label">📍 Przebieg</div>
-        <div class="stat-value">${vehicle.currentKm.toLocaleString()} km</div>
-    </div>
-    <div class="stat">
-    <div class="stat-label"><img src="gasoline-level.png" class="fuel-icon"> Paliwo</div>
-    <div class="stat-value">${vehicle.currentFuel?.toFixed(1) || '0.0'} L</div>
-    </div>
-
-                        <!-- Estados de combustible -->
-                        ${fuelTypes.length === 2 ?
-                        fuelTypes.map((fuelType, i) => {
-                        const fuelCapacities = vehicle.fuelCapacities || [80, 80];
-                        const currentFuels = vehicle.currentFuels || [0, 0];
-                        const percentage = (currentFuels[i] / fuelCapacities[i]) * 100;
-                        return `<div class="fuel-status">
-                        ${getFuelIcon(percentage)}
-                        <span>${fuelType}</span>
-                            <small>${percentage.toFixed(0)}%</small>
-                            </div>`;
-                        }).join('') :
-                        `<div class="fuel-status">
-                        ${getFuelIcon((vehicle.currentFuel / (vehicle.fuelCapacity || 80)) * 100)}
-                            <span>${fuelTypes[0]}</span>
-                                <small>${fuelInfo}</small>
-                            </div>`
-                        }
+<div class="stat-label">📍 Przebieg</div>
+    <div class="stat-value">${vehicle.currentKm.toLocaleString()} km</div>
+</div>
 <div class="stat">
-    <div class="stat-label">${tireIcon} Opony</div>
-    <div class="stat-value">${tireText}</div>
-    </div>
-        <div class="stat ${needsService ? 'stat-warning' : ''}">
-                <div class="stat-label">${needsService ? '⚠️' : '🔧'} Następny Serwis</div>
-                <div class="stat-value">${needsService ? 'Teraz' : `${kmUntilService.toLocaleString()} km`}</div>
-            </div>
-            </div>
+<div class="stat-label">⛽ Średnie spalanie</div>
+<div class="stat-value">${vehicle.fuelNorm || 'N/A'} L/100 km</div>
+</div>
+<div class="stat">
+<div class="stat-label">${tireIcon} Opony</div>
+<div class="stat-value">${tireText}</div>
+</div>
+<div class="stat">
+<div class="stat-label">🔧 Następny Serwis</div>
+<div class="stat-value">${kmUntilService.toLocaleString()} km</div>
+</div>
+        </div>
+</div>
 
-            <div class="vehicle-actions">
-                    <button class="btn-edit" onclick="event.stopPropagation(); editVehicle('${vehicleId}')">Edytuj</button>
-                        ${keysDelivered
-                        ? `<button class="btn-keys" onclick="event.stopPropagation(); returnKeys('${vehicleId}')">Klucze Zwrócone</button>`
-                        : ''
-                        }
-                        <button class="btn-delete" onclick="event.stopPropagation(); deleteVehicle('${vehicleId}', '${vehicle.registration}')">Usuń</button>
+            <div class="vehicle-actions" style="display: flex; justify-content: space-between; align-items: center;">
+            <button class="btn-edit" onclick="event.stopPropagation(); editVehicle('${vehicleId}')">Edytuj</button>
+            ${getFuelIcon(avgFuelPercentage)}
+            ${keysDelivered
+            ? `<button class="btn-keys" onclick="event.stopPropagation(); returnKeys('${vehicleId}')">Klucze Zwrócone</button>`
+            : ''
+            }
+                <button class="btn-delete" onclick="event.stopPropagation(); deleteVehicle('${vehicleId}', '${vehicle.registration}')">Usuń</button>
                     </div>
                 </div>
             `;
@@ -1020,7 +990,7 @@ async function renderTripsTable(snapshot) {
         if (snapshot.empty) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="20" style="text-align: center; padding: 40px;">
+                    <td colspan="19" style="text-align: center; padding: 40px;">
                         <div class="empty-state-icon" style="font-size: 60px;">📋</div>
                         <h3 style="color: #666; margin-top: 15px;">Brak rejestracji podróży</h3>
                         <p style="color: #999;">Podróże pojawią się tutaj, gdy kierowcy będą używać aplikacji</p>
@@ -1055,7 +1025,6 @@ async function renderTripsTable(snapshot) {
                 <td>${trip.fuelStart?.toFixed(1) || '-'}</td>
                 <td>${trip.fuelUsed?.toFixed(1) || '-'}</td>
                 <td class="desktop-only">${trip.refuelLiters ? trip.refuelLiters + ' L' : '-'}</td>
-                <td>${consumption}</td>
                 <td class="desktop-only">${trip.oilAdded ? '✅' : '-'}</td>
                 <td class="desktop-only">${trip.washerFluidAdded ? '✅' : '-'}</td>
                 <td class="desktop-only account-col">${trip.accountNumber || '-'}</td>
@@ -1138,7 +1107,7 @@ exportPdfBtn.addEventListener('click', async () => {
     }
     
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4');
+    const doc = new jsPDF('p', 'mm', 'a4');
     
     const tableData = [];
     
@@ -1191,103 +1160,7 @@ exportPdfBtn.addEventListener('click', async () => {
     doc.save(`viajes_${new Date().toISOString().split('T')[0]}.pdf`);
 });
 
-// Generate test data
-generateTestDataBtn.addEventListener('click', async () => {
-    if (!confirm('Czy wygenerować dane testowe? To utworzy 5 przykładowych podróży dla wybranego pojazdu.')) {
-        return;
-    }
-    
-    try {
-        // Get all vehicles
-        const vehiclesSnapshot = await db.collection('vehicles')
-            .where('userId', '==', currentUser.uid)
-            .limit(1)
-            .get();
-        
-        if (vehiclesSnapshot.empty) {
-            alert('Najpierw musisz utworzyć przynajmniej jeden pojazd.');
-            return;
-        }
-        
-        const vehicleDoc = vehiclesSnapshot.docs[0];
-        const vehicleId = vehicleDoc.id;
-        const vehicle = vehicleDoc.data();
-        
-        const drivers = ['Juan Pérez', 'María García', 'Carlos López', 'Ana Martínez', 'Pedro Sánchez'];
-        const currentKm = vehicle.currentKm;
-        const currentFuel = vehicle.currentFuel;
-        
-        let kmCounter = currentKm - 1000; // Empezar 1000 km atrás
-        let fuelCounter = currentFuel;
-        
-        // Crear 5 viajes de prueba
-        for (let i = 0; i < 5; i++) {
-            const date = new Date();
-            date.setDate(date.getDate() - (4 - i)); // 5 días atrás hasta hoy
-            
-            const kmTraveled = Math.floor(Math.random() * 150) + 50; // 50-200 km
-            const hourStart = `0${8 + Math.floor(Math.random() * 3)}:${Math.floor(Math.random() * 6)}0`;
-            const hoursWorked = Math.floor(Math.random() * 4) + 2; // 2-6 horas
-            const minutesWorked = Math.floor(Math.random() * 60);
-            const endHour = parseInt(hourStart.split(':')[0]) + hoursWorked;
-            const endMinute = (parseInt(hourStart.split(':')[1]) + minutesWorked) % 60;
-            const hourEnd = `${endHour}:${endMinute.toString().padStart(2, '0')}`;
-            
-            const fuelUsed = (kmTraveled / 100) * (6 + Math.random() * 4); // 6-10 L/100km
-            
-            // Datos adicionales de prueba
-            const cities = ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Bilbao'];
-            const accounts = ['PL-2024-001', 'PL-2024-002', 'OB-2024-003', 'MN-2024-004'];
-            const refueled = Math.random() > 0.7; // 30% chance de repostaje
-            
-            const kmStart = kmCounter;
-            const kmEnd = kmCounter + kmTraveled;
-            kmCounter = kmEnd;
-            
-            const tripData = {
-                date: firebase.firestore.Timestamp.fromDate(date),
-                driverName: drivers[i % drivers.length],
-                fuelStart: parseFloat(fuelCounter.toFixed(1)),
-                fuelUsed: parseFloat(fuelUsed.toFixed(1)),
-                hourStart: hourStart,
-                hourEnd: hourEnd,
-                kmStart: kmStart,
-                kmEnd: kmEnd,
-                originCity: cities[Math.floor(Math.random() * cities.length)],
-                destinationCity: cities[Math.floor(Math.random() * cities.length)],
-                accountNumber: accounts[Math.floor(Math.random() * accounts.length)],
-                refuelLiters: refueled ? Math.floor(Math.random() * 40) + 20 : 0,
-                fuelType: 'diesel',
-                oilAdded: Math.random() > 0.8,
-                washerFluidAdded: Math.random() > 0.7,
-                userId: currentUser.uid,
-                vehicleId: vehicleId,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            // Si hubo repostaje, sumar al combustible
-            if (refueled) {
-                fuelCounter += tripData.refuelLiters;
-            }
-            
-            await db.collection('trips').add(tripData);
-            fuelCounter -= fuelUsed;
-        }
-        
-        // Actualizar el vehículo con los últimos km
-        await db.collection('vehicles').doc(vehicleId).update({
-            currentKm: kmCounter,
-            currentFuel: parseFloat(fuelCounter.toFixed(1))
-        });
-        
-        alert('✅ Dane testowe wygenerowane poprawnie');
-        // No llamamos load - los listeners actualizan automáticamente
-        
-    } catch (error) {
-        console.error('Błąd podczas generowania danych:', error);
-        alert('Błąd podczas generowania danych testowych: ' + error.message);
-    }
-});
+
 
 // Vehicle Detail View
 async function showVehicleDetail(vehicleId) {
@@ -1345,27 +1218,29 @@ async function loadVehicleDetailTrips(vehicleId, vehicle) {
         html += `
         <div class="vehicle-info-header">
         <h2>KARTA DROGOWA</h2>
-            <div class="vehicle-details-grid">
-                <div><strong>Nr:</strong> ${vehicle.vehicleNumber || '-'}</div>
-                <div><strong>Data od:</strong> ${vehicle.dateFrom ? new Date(vehicle.dateFrom).toLocaleDateString('pl-PL') : '-'}</div>
-                <div><strong>Data do:</strong> ${vehicle.dateTo ? new Date(vehicle.dateTo).toLocaleDateString('pl-PL') : '-'}</div>
-            </div>
+        <div class="vehicle-details-grid">
+        <div><strong>Nr konta:</strong> ${vehicle.vehicleNumber || '-'}</div>
+        <div><strong>Data od:</strong> ${vehicle.dateFrom ? new Date(vehicle.dateFrom).toLocaleDateString('pl-PL') : '-'}</div>
+        <div><strong>Data do:</strong> ${vehicle.dateTo ? new Date(vehicle.dateTo).toLocaleDateString('pl-PL') : '-'}</div>
+        </div>
         </div>
 
         <!-- Primera tabla: Refueling records -->
         <div class="refuel-table-section">
-            <h3>Rejestr tankowań</h3>
+        <h3>Raport zużycia paliwa</h3>
+        <div style="font-size: 12px; font-weight: normal; margin-top: 5px;">Zużycie na mot Norma: ${vehicle.fuelNorm || '-'} L/100km</div>
         <table class="trips-table refuel-table">
         <thead>
-            <tr>
-                <th>Dzień m-c</th>
-            <th>Początkowy stan paliwa</th>
-        <th>Sym,Pal,Faktura</th>
+        <tr>
+        <th>Dzień<br>m-c</th>
+        <th>Pocz. st<br>paliwa</th>
+        <th>Sym. Pal,<br>Faktura</th>
         <th>Ilość</th>
         <th>Wartość</th>
         <th>Zużycie</th>
-        <th>Końcowy stan paliwa</th>
+        <th>Końcowy stan<br>paliwa</th>
         <th>Oszczędność</th>
+        <th>Przepał</th>
         </tr>
         </thead>
         <tbody>
@@ -1386,6 +1261,7 @@ async function loadVehicleDetailTrips(vehicleId, vehicle) {
                     <td>${trip.fuelUsed?.toFixed(1) || '-'}</td>
                     <td>${trip.fuelEnd?.toFixed(1) || '-'}</td>
                     <td>-</td> <!-- Oszczędność -->
+                        <td>-</td> <!-- Przepał -->
                 </tr>
                 `;
             } else {
@@ -1399,6 +1275,7 @@ async function loadVehicleDetailTrips(vehicleId, vehicle) {
                     <td>-</td>
                     <td>-</td>
                     <td>-</td>
+                        <td>-</td>
                 </tr>
                 `;
             }
@@ -1472,32 +1349,31 @@ async function loadVehicleDetailTrips(vehicleId, vehicle) {
     }
 }
 
-backToVehiclesBtn.addEventListener('click', () => {
-    currentVehicleDetail = null;
-    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-    document.getElementById('vehiclesView').classList.add('active');
-});
+if (backToVehiclesBtn) {
+    backToVehiclesBtn.addEventListener('click', () => {
+        currentVehicleDetail = null;
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('vehiclesView').classList.add('active');
+    });
+}
 
 exportVehiclePdfBtn.addEventListener('click', async () => {
     if (!currentVehicleDetail) return;
-    
+
     try {
         const vehicleDoc = await db.collection('vehicles').doc(currentVehicleDetail).get();
         const vehicle = vehicleDoc.data();
-        
+
         const snapshot = await db.collection('trips')
             .where('userId', '==', currentUser.uid)
             .where('vehicleId', '==', currentVehicleDetail)
             .get();
-        
-        if (snapshot.empty) {
-            alert('Brak podróży do eksportu');
-            return;
-        }
-        
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('l', 'mm', 'a4');
 
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+
+        // Usar Times New Roman, que soporta caracteres polacos básicos
+        doc.setFont('Times');
         doc.setFontSize(18);
         doc.text('KARTA DROGOWA', 14, 15);
 
@@ -1505,7 +1381,7 @@ exportVehiclePdfBtn.addEventListener('click', async () => {
         doc.text(`${vehicle.brand} ${vehicle.model} (${vehicle.registration})`, 14, 25);
 
         doc.setFontSize(10);
-        doc.text(`Nr: ${vehicle.vehicleNumber || '-'}`, 14, 32);
+        doc.text(`Nr konta: ${vehicle.vehicleNumber || '-'}`, 14, 32);
         doc.text(`Data od: ${vehicle.dateFrom ? new Date(vehicle.dateFrom).toLocaleDateString('pl-PL') : '-'}`, 80, 32);
         doc.text(`Data do: ${vehicle.dateTo ? new Date(vehicle.dateTo).toLocaleDateString('pl-PL') : '-'}`, 140, 32);
 
@@ -1514,9 +1390,12 @@ exportVehiclePdfBtn.addEventListener('click', async () => {
 
         let yPosition = 45;
 
-        // Primera tabla: Rejestr tankowań
+        // Primera tabla: Raport zużycia paliwa
         doc.setFontSize(14);
-        doc.text('Rejestr tankowań', 14, yPosition);
+        doc.text('Raport zużycia paliwa', 14, yPosition);
+        yPosition += 6;
+        doc.setFontSize(10);
+        doc.text(`Zużycie na mot Norma: ${vehicle.fuelNorm || '-'} L/100km`, 14, yPosition);
         yPosition += 10;
 
         const refuelData = [];
@@ -1541,11 +1420,12 @@ exportVehiclePdfBtn.addEventListener('click', async () => {
         }
 
         doc.autoTable({
-        head: [['Dzień m-c', 'Początkowy stan paliwa', 'Sym,Pal,Faktura', 'Ilość', 'Wartość', 'Zużycie', 'Końcowy stan paliwa', 'Oszczędność']],
+        head: [["Dzień\nm-c", "Pocz. st\npaliwa", "Sym. Pal,\nFaktura", "Ilość", "Wartość", "Zużycie", "Końcowy stan\npaliwa", "Oszczędność"]],
         body: refuelData,
         startY: yPosition,
         styles: { fontSize: 6 },
-        headStyles: { fillColor: [102, 126, 234] }
+        headStyles: { fillColor: [102, 126, 234] },
+        theme: 'grid' // Ensure lines
         });
 
         yPosition = doc.lastAutoTable.finalY + 20;
@@ -1577,11 +1457,12 @@ exportVehiclePdfBtn.addEventListener('click', async () => {
         }
 
         doc.autoTable({
-            head: [['Dzień m-c', 'Godzina wyjazdu', 'Początkowy stan licznika', 'Godzina przyjazdu', 'Końcowy stan licznika', 'Ogółem', 'Nazwisko kierującego']],
-            body: tripData,
-            startY: yPosition,
-            styles: { fontSize: 6 },
-            headStyles: { fillColor: [102, 126, 234] }
+        head: [['Dzień m-c', 'Godzina wyjazdu', 'Początkowy stan licznika', 'Godzina przyjazdu', 'Końcowy stan licznika', 'Ogółem', 'Nazwisko kierującego']],
+        body: tripData,
+        startY: yPosition,
+        styles: { fontSize: 6 },
+        headStyles: { fillColor: [102, 126, 234] },
+            theme: 'grid'
         });
 
         const fileName = `${vehicle.brand}_${vehicle.model}_${vehicle.registration}_${new Date().toISOString().split('T')[0]}.pdf`;
@@ -1759,7 +1640,13 @@ async function loadAssignments() {
             return;
         }
 
+        // Use a Set to avoid duplicates
+        const addedIds = new Set();
+
         for (const doc of querySnapshot.docs) {
+            if (addedIds.has(doc.id)) continue; // Skip if already added
+            addedIds.add(doc.id);
+
             const assignment = doc.data();
             const vehicleDoc = await db.collection('vehicles').doc(assignment.vehicleId).get();
             const vehicle = vehicleDoc.data();
@@ -1857,6 +1744,106 @@ async function deleteTransfer(transferId) {
 }
 
 // Make functions global for onclick handlers
+// Issues functionality
+function setupIssuesListener() {
+    if (issuesListener) {
+        issuesListener();
+    }
+    issuesListener = db.collection('issues')
+        .where('status', '==', 'active')
+        .orderBy('fecha', 'desc')
+        .onSnapshot((snapshot) => {
+            loadIssues(snapshot);
+        });
+}
+
+async function loadIssues(snapshot = null) {
+    const tableBody = document.getElementById('issuesTableBody');
+    tableBody.innerHTML = '';
+
+    let querySnapshot;
+    if (snapshot) {
+        querySnapshot = snapshot;
+    } else {
+        try {
+            querySnapshot = await db.collection('issues')
+                .where('status', '==', 'active')
+                .orderBy('fecha', 'desc')
+                .get();
+        } catch (error) {
+            console.error('Error loading issues:', error);
+            tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Błąd ładowania problemów</td></tr>';
+            return;
+        }
+    }
+
+    if (querySnapshot.empty) {
+        tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Brak aktywnych problemów</td></tr>';
+        return;
+    }
+
+    querySnapshot.forEach((doc) => {
+        const issue = doc.data();
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${issue.conductorId || 'Desconocido'}</td>
+            <td>${issue.tipoAveria || 'N/A'}</td>
+            <td>${issue.descripcion || 'Sin descripción'}</td>
+            <td>${issue.fecha ? new Date(issue.fecha.toDate()).toLocaleString('es-ES') : 'Sin fecha'}</td>
+            <td><span class="status-badge status-${issue.status || 'active'}">${issue.status || 'active'}</span></td>
+            <td>
+            <button onclick="resolveIssue('${doc.id}')" class="btn-primary">Rozwiąż</button>
+            <button onclick="deleteIssue('${doc.id}')" class="btn-secondary">Usuń</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+async function resolveIssue(issueId) {
+    if (!confirm('Czy oznaczyć tę awarię jako rozwiązaną?')) {
+        return;
+    }
+
+    try {
+        // Opción: mover a resolved_issues
+        const issueDoc = await db.collection('issues').doc(issueId).get();
+        const issueData = issueDoc.data();
+        await db.collection('resolved_issues').add({
+            ...issueData,
+            resolvedAt: new Date()
+        });
+
+        // Luego eliminar de issues
+        await db.collection('issues').doc(issueId).delete();
+
+        console.log('✅ Problem rozwiązany i zarchiwizowany');
+    } catch (error) {
+        console.error('❌ Error resolviendo issue:', error);
+        alert('Błąd podczas rozwiązywania problemu: ' + error.message);
+    }
+}
+
+async function deleteIssue(issueId) {
+    if (!confirm('Czy na pewno usunąć tę awarię na stałe?')) {
+        return;
+    }
+
+    try {
+        await db.collection('issues').doc(issueId).delete();
+        console.log('✅ Problem usunięty');
+    } catch (error) {
+        console.error('❌ Error eliminando issue:', error);
+        alert('Błąd podczas usuwania problemu: ' + error.message);
+    }
+}
+
+// Refresh button
+document.getElementById('refreshIssuesBtn').addEventListener('click', () => {
+    loadIssues();
+});
+
+// Make functions global
 window.editVehicle = editVehicle;
 window.deleteVehicle = deleteVehicle;
 window.showVehicleDetail = showVehicleDetail;
@@ -1864,3 +1851,5 @@ window.returnKeys = returnKeys;
 window.toggleTripDetails = toggleTripDetails;
 window.revokeAssignment = revokeAssignment;
 window.deleteTransfer = deleteTransfer;
+window.resolveIssue = resolveIssue;
+window.deleteIssue = deleteIssue;
